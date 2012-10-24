@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>indexedDB - add records</title>
+
+		<script type="text/javascript">
+			var dojoConfig = {
+            async: true,
+            parseOnLoad: true,
+            isDebug: true,
+            baseUrl: "/js/dojotoolkit/",
+            packages: [
+              { name: "dojo",   location: "dojo" },
+              { name: "indexedDB", location: "indexedDB" }
+            ]
+			};
+		</script>
+
+    <script type="text/javascript" src="/js/dojotoolkit/dojo/dojo.js"></script>
+
+  </head>
+
+  <body class="claro">
+    <div id="CheckboxTree">
+      <script type="text/javascript">
+				require(["indexedDB/IDBEnvironment!enforce"], function(indexedDB) {
+
+						function onError( event ) {
+							console.log( "Error: " + event.target.identity );
+							console.log(event);
+						}
+
+						function onAbort( event ) {
+							console.log( "Aborted: " + event.target.identity );
+							console.log(event);
+						}
+
+						var database = {
+							stores: [
+								{ url:"/Simpsons.json", name:"characters", storeOptions:{keyPath:"name"},
+									indexes: [
+										{ name:"parents", keyPath:"parent", indexOptions:{multiEntry:true}}
+									]
+								}
+							]
+						};
+
+						// Delete database if one exists
+						indexedDB.deleteDatabase("simpsons");
+						// Open database and add the 'upgradeneeded', 'onsuccess' and 'onerror'
+						// event handlers.
+						var openReq0 = indexedDB.open("/js/dojotoolkit/indexedDB/database/SimpsonsDB", database);
+						openReq0.onupgradeneeded = function upgrade1(event) {
+							console.log( "Upgradeneeded - openReq0" );
+						}
+
+						openReq0.onsuccess = function (event) {
+							var dbConn   = this.result;
+							console.log( "{openReq0} Database ["+dbConn.name+"] successfully opened.");
+							// Start a transaction to add records to the store...
+							var trans0 = dbConn.transaction( dbConn.objectStoreNames, IDBTransaction.READ_WRITE );
+							trans0.oncomplete = function (event) {
+								console.log( "{trans0} Transaction Complete." );
+							} /*end trans0.oncomplete() */
+							trans0.onabort = onError;
+
+							var objStore = trans0.objectStore("characters");
+							var index    = objStore.index("parents");
+
+							var request1 = objStore.openCursor();
+							request1.onsuccess = function (event) {
+								var cursor = this.result;
+								if (cursor) {
+									console.log( "Name: " + cursor.value.name);
+									cursor.continue();
+								}
+							}
+
+						} /* openReq0.onsucess() */
+
+						openReq0.onerror = onError;
+
+
+        });
+      </script>
+    </div>
+  </body>
+</html>

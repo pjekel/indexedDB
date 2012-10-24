@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>indexedDB - Open Database</title>
+
+		<script type="text/javascript">
+			var dojoConfig = {
+            async: true,
+            parseOnLoad: true,
+            isDebug: true,
+            baseUrl: "/js/dojotoolkit/",
+            packages: [
+              { name: "dojo",   location: "dojo" },
+              { name: "indexedDB", location: "indexedDB" }
+            ]
+			};
+		</script>
+
+    <script type="text/javascript" src="/js/dojotoolkit/dojo/dojo.js"></script>
+
+  </head>
+
+  <body class="claro">
+    <div id="CheckboxTree">
+      <script type="text/javascript">
+      require(["indexedDB/IDBEnvironment!enforce"], function(indexedDB) {
+
+						function onError( event ) {
+							console.log( "Error: " + event.target.identity );
+							console.log(event);
+						}
+
+						// Delete databaseif one exists
+						indexedDB.deleteDatabase("myDatabase");
+
+						// Open database and add the 'upgradeneeded', 'onsuccess' and 'onerror'
+						// event handlers.
+						var openReq0 = indexedDB.open("myDatabase", 1);
+						openReq0.onupgradeneeded = function upgrade1(event) {
+							// This is called because 'myDatabase' does not exist...
+							console.log( "Upgradeneeded - openReq0" );
+							var dbConn   = this.result;
+							var objStore = dbConn.createObjectStore("myStore", {keyPath:"name"});
+
+							// Add some records....
+							objStore.add( { name:"Abe", lastname: "Simpson"} );
+							objStore.add( { name:"Homer", lastname: "Simpson"} );
+							objStore.add( { name:"Marge", lastname: "Simpson"} );
+							objStore.add( { name:"Bart", lastname: "Simpson"} );
+							objStore.add( { name:"Lisa", lastname: "Simpson"} );
+							objStore.add( { name:"Maggie", lastname: "Simpson"} );
+							objStore.add( { name:"Ned", lastname:"Flanders"} );
+							objStore.add( { name:"Rod", lastname:"Flanders"} );
+							objStore.add( { name:"Todd", lastname:"Flanders"} );
+							objStore.add( { name:"Ginger", lastname:"Flanders"} );
+
+							objStore.add( { name:"Apu", lastname:"Nahasapeemapetilon"} );
+							objStore.add( { name:"Manjula", lastname:"Nahasapeemapetilon"} );
+							objStore.add( { name:"Sanjay", lastname:"Nahasapeemapetilon"} );
+
+						}
+						openReq0.onsuccess = function (event) {
+							var dbConn   = this.result;
+							console.log( "{openReq0} Database ["+dbConn.name+"] successfully opened.");
+							dbConn.onversionchange = function( event ) {
+								console.log( "{openReq0} Version Change requested." );
+								this.close();
+							}
+
+						}
+						openReq0.onerror = onError;
+
+						// Open same database with a different version number and add a new
+						// index to the existing store....
+						var openReq1 = indexedDB.open("myDatabase", 2);
+						openReq1.onupgradeneeded = function upgrade2(event) {
+							console.log( "Upgradeneeded - openReq1" );
+							var trans2   = this.transaction;
+							var dbConn   = this.result;
+							var objStore = trans2.objectStore("myStore");
+							var index    = objStore.createIndex("myIndex", "lastname", {unique: false});
+						}
+
+						// Register success event handler.
+						openReq1.onsuccess = function (event) {
+							var dbConn   = this.result;
+							console.log( "{openReq1} Database ["+dbConn.name+"] successfully opened.");
+							// First list the available stores, which should be just one.
+
+							for (var i=0; i<dbConn.objectStoreNames.length; i++) {
+								console.log( "Store: " + dbConn.objectStoreNames.item(i));
+							}
+							// Iterate the new index...
+							var trans3   = dbConn.transaction("myStore");
+							var objStore = trans3.objectStore("myStore");
+							var index    = objStore.index("myIndex");
+							var request  = index.openCursor();
+
+							request.onsuccess = function (event) {
+								var cursor = this.result;
+								if (cursor) {
+									console.log( "{cursor0} Name: "+cursor.value.name+ " Lastname: "+cursor.value.lastname );
+									cursor.continue();
+								}
+							}
+							// non-standard event....
+							dbConn.on( "closed", function() {
+								console.log( "Database is closed");
+							});
+							dbConn.close();
+
+							// Open same database again and delete the index.
+							var openReq2 = indexedDB.open("myDatabase", 3);
+							openReq2.onupgradeneeded = function upgrade3(event) {
+								console.log( "Upgradeneeded - openReq2" );
+								var trans    = this.transaction;
+								var dbConn   = this.result;
+								var objStore = trans.objectStore("myStore");
+								objStore.deleteIndex("myIndex");
+								console.log( "Index deleted." );
+							}
+							openReq2.onsuccess = function(event) {
+								var dbConn   = this.result;
+								console.log( "{openReq1} Database ["+dbConn.name+"] successfully opened.");
+
+							}
+							openReq2.onerror = onError;
+
+						}
+						openReq1.onblocked = function( event ) {
+							console.log( "{openReq1 - Request is blocked.");
+							console.log(event);
+						}
+						openReq1.onerror = onError;
+
+        });
+      </script>
+    </div>
+  </body>
+</html>

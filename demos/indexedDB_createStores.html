@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>indexedDB - Open Database</title>
+
+		<script type="text/javascript">
+			var dojoConfig = {
+            async: true,
+            parseOnLoad: true,
+            isDebug: true,
+            baseUrl: "/js/dojotoolkit/",
+            packages: [
+              { name: "dojo",   location: "dojo" },
+              { name: "indexedDB", location: "indexedDB" }
+            ]
+			};
+		</script>
+
+    <script type="text/javascript" src="/js/dojotoolkit/dojo/dojo.js"></script>
+
+  </head>
+
+  <body class="claro">
+    <div id="CheckboxTree">
+      <script type="text/javascript">
+      require(["indexedDB/IDBEnvironment!enforce"], function (indexedDB) {
+
+						function onError( event ) {
+							console.log( "Error: " + event.target.identity );
+							console.log(event);
+						}
+
+						// Delete databaseif one exists
+						indexedDB.deleteDatabase("myDatabase");
+
+						// Open database and add the 'upgradeneeded', 'onsuccess' and 'onerror'
+						// event handlers.
+						var openReq0 = indexedDB.open("myDatabase", 1);
+						openReq0.onupgradeneeded = function upgrade1(event) {
+							// This is called because 'myDatabase' does not exist...
+							console.log( "Upgradeneeded - openReq0" );
+							var dbConn   = this.result;
+							var request;
+
+							// TEST 1 - CREATE A STORE WITHOUT A KEY PATH AND NO KEY GENERATOR. THIS
+							//					TYPE OF STORE REQUIRES THE KEY TO BE EXPLICITLY PROVIDED WHEN
+							//					ADDING RECORDS TO THE STORE.
+							console.info( "Test 1 - Create new store without a key path or key generator.");
+							var objStore = dbConn.createObjectStore("myStore");
+
+							// 1.1 - Add a record without specifying a key - this should fail.
+							try {
+								request = objStore.add({name:"Homer", lastname:"Simpson"});
+								console.error( "Test 1.1 - Failed, an exception was expected." );
+							} catch(err) {
+								console.log( "Test 1.1 - Ok, expected exception was thrown." );
+							}
+
+							// 1.2 - Add a record with a specific key - this must succeed.
+							try {
+								request = objStore.add({name:"Homer", lastname:"Simpson"}, "key1" );
+								request.onsuccess = function (event) {
+									if (this.result === "key1") {
+										console.log( "Test 1.2 - Ok, record added with correct key: ["+this.result+"]" );
+									} else {
+										console.error( "Test 1.2 - Record added but with wrong key: ["+this.result+"]" );
+									}
+								};
+								request.onerror = function (event) {
+									console.error( "Test 1.2 - Failed, no error was expected." );
+									console.error( "     Error reported: "+event.target.error );
+								}
+							} catch(err) {
+								console.error( "Test 1.2 - Failed, no exception was expected." );
+								console.error( "     Error reported: "+err );
+							}
+
+							// 1.3 - Add a record with a invalid key (a JS object is not a valid key) - this must fail.
+							try {
+								request = objStore.add({name:"Homer", lastname:"Simpson"}, {key: "key1"} );
+								request.onsuccess = function (event) {
+									console.error( "Test 1.3 - Failed, record was added, expected an exception." );
+								};
+								request.onerror = function (event) {
+									console.error( "Test 1.3 - Failed, error response instead of an exception." );
+									console.error( "     Error reported: "+event.target.error );
+								}
+							} catch(err) {
+								console.log( "Test 1.3 - Ok, expected exception was thrown." );
+							}
+
+							// 1.4 - Add a record with a specific date key - this must succeed.
+							try {
+								request = objStore.add({name:"Homer", lastname:"Simpson"}, new Date() );
+								request.onsuccess = function (event) {
+									console.log( "Test 1.4 - Ok, record added with date key: ["+this.result+"]" );
+								};
+								request.onerror = function (event) {
+									console.error( "Test 1.4 - Failed, no error was expected." );
+									console.error( "     Error reported: "+event.target.error );
+								}
+							} catch(err) {
+								console.error( "Test 1.4 - Failed, no exception was expected." );
+								console.error( "     Error reported: "+err );
+							}
+
+
+							// TEST 2 - CREATE A STORE WITHOUT A KEY PATH BUT WITH A KEY GENERATOR. THIS
+							//					TYPE OF STORE ALLOWS TO SPECIFY A SPECIFIC KEY FOR A RECORD. IF
+							//					NO KEY IS SPECIFIED ONE WILL BE GENERATED.
+							console.info( "Test 2 - Create new store with key generator.");
+							var objStore2 = dbConn.createObjectStore("myStore2", {autoIncrement: true});
+
+							// 2.1 - Add a record without any key.
+							try {
+								request = objStore2.add({name:"Homer", lastname:"Simpson"} );
+								request.onsuccess = function (event) {
+									console.log( "Test 2.1 - Ok, record added with key: ["+this.result+"]" );
+								};
+								request.onerror = function (event) {
+									console.error( "Test 2.1 - Failed, no error was expected." );
+									console.error( "     Error reported: "+event.target.error );
+								}
+							} catch(err) {
+								console.error( "Test 2.1 - Failed, no exception was expected." );
+								console.error( "     Error reported: "+err );
+							}
+
+							// 2.2 - Add a record with a specific numeric key.
+							try {
+								request = objStore2.add({name:"Homer", lastname:"Simpson"}, 3.5 );
+								request.onsuccess = function (event) {
+									console.log( "Test 2.2 - Ok, record added with key: ["+this.result+"]" );
+								};
+								request.onerror = function (event) {
+									console.error( "Test 2.2 - Failed, no error was expected." );
+									console.error( "     Error reported: "+event.target.error );
+								}
+							} catch(err) {
+								console.error( "Test 2.2 - Failed, no exception was expected." );
+								console.error( "     Error reported: "+err );
+							}
+
+							// 2.3 - Add a record without any key and beacause of the previous key being
+							//			 3.5 the new key must be 4
+							try {
+								request = objStore2.add({name:"Homer", lastname:"Simpson"} );
+								request.onsuccess = function (event) {
+									if (this.result === 4) {
+										console.log( "Test 2.3 - Ok, record added with expected key: ["+this.result+"]" );
+									} else {
+										console.error( "Test 2.3 - Failed, record added but with wrong key: ["+this.result+"]" );
+									}
+								};
+								request.onerror = function (event) {
+									console.error( "Test 2.3 - Failed, no error was expected." );
+									console.error( "     Error reported: "+event.target.error );
+								}
+							} catch(err) {
+								console.error( "Test 2.3 - Failed, no exception was expected." );
+								console.error( "     Error reported: "+err );
+							}
+
+							// 2.4 - Add a record with a non-numeric key
+							try {
+								request = objStore2.add({name:"Homer", lastname:"Simpson"}, "key2" );
+								request.onsuccess = function (event) {
+									console.log( "Test 2.4 - Ok, record added with expected key: ["+this.result+"]" );
+								};
+								request.onerror = function (event) {
+									console.error( "Test 2.4 - Failed, no error was expected." );
+									console.error( "     Error reported: "+event.target.error );
+								}
+							} catch(err) {
+								console.error( "Test 2.4 - Failed, no exception was expected." );
+								console.error( "     Error reported: "+err );
+							}
+
+							// 2.5 - Add a record without any key, resulting key must be 5
+							try {
+								request = objStore2.add({name:"Homer", lastname:"Simpson"} );
+								request.onsuccess = function (event) {
+									if (this.result === 5) {
+										console.log( "Test 2.5 - Ok, record added with expected key: ["+this.result+"]" );
+									} else {
+										console.error( "Test 2.5 - Failed, record added but with wrong key: ["+this.result+"]" );
+									}
+								};
+								request.onerror = function (event) {
+									console.error( "Test 2.5 - Failed, no error was expected." );
+									console.error( "     Error reported: "+event.target.error );
+								}
+							} catch(err) {
+								console.error( "Test 2.5 - Failed, no exception was expected." );
+								console.error( "     Error reported: "+err );
+							}
+
+
+
+							// TEST 3 - CREATE A STORE WITH A KEY PATH AND A KEY GENERATOR.
+							console.info( "Test 3 - Create new store with a key path and key generator.");
+							var objStore3 = dbConn.createObjectStore("myStore3", {keyPath:"id", autoIncrement: true});
+
+							// 3.1 - Add a record without any key.
+							try {
+								request = objStore3.add({name:"Homer", lastname:"Simpson"} );
+								request.onsuccess = function (event) {
+									var key = this.result;
+									request2 = objStore3.get(key);
+									request2.onsuccess = function (event) {
+										var value = this.result;
+										if (value.id != undefined && value.id === 1) {
+											console.log( "Test 3.1 - Ok, record added with key and property id: ["+key+"]" );
+										} else {
+											if (value.id == undefined) {
+												console.log( "Test 3.1 - Ok, record added but without a 'id' property." );
+											} else {
+												console.error( "Test 3.1 - Failed, record added but with a wrong 'id' property: ["+value.id+"]" );
+											}
+										}
+									}
+									request2.onerror = function (event) {
+										console.error( "Test 3.1 - Record get failed, no error was expected." );
+										console.error( "     Error reported: "+event.target.error );
+									}
+								};
+								request.onerror = function (event) {
+									console.error( "Test 3.1 - Failed, no error was expected." );
+									console.error( "     Error reported: "+event.target.error );
+								}
+							} catch(err) {
+								console.error( "Test 3.1 - Failed, no exception was expected." );
+								console.error( "     Error reported: "+err );
+							}
+
+
+							// 3.2 - Add a record with the key path property included.
+							try {
+								request = objStore3.add({id: 15, name:"Homer", lastname:"Simpson"} );
+								request.onsuccess = function (event) {
+									if (this.result === 15) {
+										console.log( "Test 3.2 - Ok, record added with expected key: ["+this.result+"]" );
+									} else {
+										console.error( "Test 3.2 - Failed, record added but with wrong key: ["+this.result+"]" );
+									}
+								}
+							} catch(err) {
+								console.error( "Test 3.2 - Failed, no exception was expected." );
+								console.error( "     Error reported: "+err );
+							}
+
+							// 3.3 - Add a record without any key, resulting key must be 16
+							try {
+								request = objStore3.add({name:"Homer", lastname:"Simpson"} );
+								request.onsuccess = function (event) {
+									if (this.result === 16) {
+										console.log( "Test 3.3 - Ok, record added with expected key: ["+this.result+"]" );
+									} else {
+										console.error( "Test 3.3 - Failed, record added but with wrong key: ["+this.result+"]" );
+									}
+								};
+								request.onerror = function (event) {
+									console.error( "Test 3.3 - Failed, no error was expected." );
+									console.error( "     Error reported: "+event.target.error );
+								}
+							} catch(err) {
+								console.error( "Test 3.3 - Failed, no exception was expected." );
+								console.error( "     Error reported: "+err );
+							}
+
+						} /* end openReq0.onupgradeneeded() */
+
+						openReq0.onsuccess = function (event) {
+							var dbConn   = this.result;
+							console.log( "{openReq0} Database ["+dbConn.name+"] successfully opened.");
+							dbConn.onversionchange = function( event ) {
+								console.log( "{openReq0} Version Change requested." );
+								this.close();
+							}
+
+						}
+						openReq0.onerror = onError;
+
+        });
+      </script>
+    </div>
+  </body>
+</html>

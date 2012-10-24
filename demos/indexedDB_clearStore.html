@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>indexedDB - clear a store</title>
+
+		<script type="text/javascript">
+			var dojoConfig = {
+            async: true,
+            parseOnLoad: true,
+            isDebug: true,
+            baseUrl: "/js/dojotoolkit/",
+            packages: [
+              { name: "dojo",   location: "dojo" },
+              { name: "indexedDB", location: "indexedDB" }
+            ]
+			};
+		</script>
+
+    <script type="text/javascript" src="/js/dojotoolkit/dojo/dojo.js"></script>
+
+  </head>
+
+  <body class="claro">
+    <div id="CheckboxTree">
+      <script type="text/javascript">
+				require(["indexedDB/IDBEnvironment!enforce"], function(indexedDB) {
+
+						function onError( event ) {
+							console.log( "Error: " + event.target.identity );
+							console.log(event);
+						}
+
+						function onAbort( event ) {
+							console.log( "Aborted: " + event.target.identity );
+							console.log(event);
+						}
+
+						// Delete database if one exists
+						indexedDB.deleteDatabase("simpsons");
+
+						// Open database and add the 'upgradeneeded', 'onsuccess' and 'onerror'
+						// event handlers.
+						var openReq0 = indexedDB.open("simpsons");
+						openReq0.onupgradeneeded = function upgrade1(event) {
+							// This is called when 'myDatabase' does not exist...
+							console.log( "Upgradeneeded - openReq0" );
+							var dbConn   = this.result;
+							var objStore = dbConn.createObjectStore("myStore", {keyPath:"name"});
+							var index    = objStore.createIndex("myIndex", "lastname");
+						}
+
+						// Register the 'onsuccess' event handler for the open request.
+						openReq0.onsuccess = function (event) {
+							var dbConn   = this.result;
+							console.log( "{openReq0} Database ["+dbConn.name+"] successfully opened.");
+							// Start a transaction to add records to the store...
+							var trans0 = dbConn.transaction( dbConn.objectStoreNames, IDBTransaction.READ_WRITE );
+								trans0.oncomplete = function (event) {
+								console.log( "{trans0} Transaction Complete." );
+
+								// Start a new transaction, open and iterate a cursor (no range specified).
+								var trans1    = dbConn.transaction( "myStore" );
+								var objStore1 = trans1.objectStore("myStore");
+								var index1    = objStore1.index("myIndex");
+
+								var countReq0 = objStore1.count();
+								countReq0.onsuccess = function (event) {
+									console.log( "There are "+this.result+" records in the store.");
+								}
+
+								var countReq1 = index1.count();
+								countReq1.onsuccess = function (event) {
+									console.log( "There are "+this.result+" records in the index.");
+								}
+
+								// Start a new read-write transaction to clear the store.
+								var trans2    = dbConn.transaction( "myStore", IDBTransaction.READ_WRITE );
+								var objStore2 = trans2.objectStore("myStore");
+								var index2    = objStore2.index("myIndex");
+								// Clear the store
+								clearReq2 = objStore2.clear();
+								clearReq2.onsuccess = function (event) {
+									console.log( "Store has been cleared..");
+									var countReq2 = objStore2.count();
+									countReq2.onsuccess = function (event) {
+										console.log( "There are "+this.result+" records in the store.");
+									}
+
+									var countReq3 = index2.count();
+									countReq3.onsuccess = function (event) {
+										console.log( "There are "+this.result+" records in the index.");
+									}
+								}
+							} /*end trans0.oncomplete() */
+
+							console.log( "Adding records to the store." );
+							var objStore = trans0.objectStore("myStore");
+
+							objStore.add( { name:"Abe", lastname: "Simpson"} );
+							objStore.add( { name:"Homer", lastname: "Simpson"} );
+							objStore.add( { name:"Marge", lastname: "Simpson"} );
+							objStore.add( { name:"Bart", lastname: "Simpson"} );
+							objStore.add( { name:"Lisa", lastname: "Simpson"} );
+							objStore.add( { name:"Maggie", lastname: "Simpson"} );
+
+							objStore.add( { name:"Ned", lastname:"Flanders"} );
+							objStore.add( { name:"Rod", lastname:"Flanders"} );
+							objStore.add( { name:"Todd", lastname:"Flanders"} );
+							objStore.add( { name:"Ginger", lastname:"Flanders"} );
+
+							objStore.add( { name:"Apu", lastname:"Nahasapeemapetilon"} );
+							objStore.add( { name:"Manjula", lastname:"Nahasapeemapetilon"} );
+							objStore.add( { name:"Sanjay", lastname:"Nahasapeemapetilon"} );
+
+							trans0.onabort = onError;
+
+						} /* openReq0.onsucess() */
+
+						// Register the 'onerror' event handler for the open request.
+						openReq0.onerror = onError;
+
+        });
+      </script>
+    </div>
+  </body>
+</html>

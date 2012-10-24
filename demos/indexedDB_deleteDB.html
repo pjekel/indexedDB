@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>indexedDB - Delete Database</title>
+
+		<script type="text/javascript">
+			var dojoConfig = {
+            async: true,
+            parseOnLoad: true,
+            isDebug: true,
+            baseUrl: "/js/dojotoolkit/",
+            packages: [
+              { name: "dojo",   location: "dojo" },
+              { name: "indexedDB", location: "indexedDB" }
+            ]
+			};
+		</script>
+
+    <script type="text/javascript" src="/js/dojotoolkit/dojo/dojo.js"></script>
+
+  </head>
+
+  <body class="claro">
+    <div id="CheckboxTree">
+      <script type="text/javascript">
+      require(["indexedDB/IDBEnvironment!enforce"], function (indexedDB) {
+
+						function onError( event ) {
+							console.log( "Error: " + event.target.identity );
+							console.log(event);
+						}
+
+						// Open database and add the 'upgradeneeded', 'onsuccess' and 'onerror'
+						// event handlers.
+						var openReq0 = indexedDB.open("myDatabase");
+						openReq0.onupgradeneeded = function upgrade1(event) {
+							// This is called because 'myDatabase' does not exist...
+							console.log( "Upgradeneeded - openReq0" );
+							var dbConn   = this.result;
+							var objStore = dbConn.createObjectStore("myStore", {keyPath:"name"});
+							var index    = objStore.createIndex("myIndex", "lastname", {unique: false, multiEntry: false});
+						}
+						openReq0.onsuccess = function (event) {
+							var dbConn   = this.result;
+							console.log( "{openReq0} Database ["+dbConn.name+"] successfully opened.");
+							dbConn.onversionchange = function( event ) {
+								console.log( "{openReq0} Version Change requested." );
+								this.close();
+							}
+						}
+						openReq0.onerror = onError;
+
+						var deleteReq0 = indexedDB.deleteDatabase( "myDatabase");
+						deleteReq0.onsuccess = function (event) {
+							console.log( "{deleteReq0} Database has been deleted." );
+							console.log( "> Old version: ["+event.oldVersion+"], new version: ["+event.newVersion+"]" );
+						}
+						deleteReq0.onblocked = function (event) {
+							console.log( "{deleteReq0} request is blocked");
+						}
+						deleteReq0.onerror = onError;
+
+        });
+      </script>
+    </div>
+  </body>
+</html>

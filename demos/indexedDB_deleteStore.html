@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>indexedDB - Delete Object Store</title>
+
+		<script type="text/javascript">
+			var dojoConfig = {
+            async: true,
+            parseOnLoad: true,
+            isDebug: true,
+            baseUrl: "/js/dojotoolkit/",
+            packages: [
+              { name: "dojo",   location: "dojo" },
+              { name: "indexedDB", location: "indexedDB" }
+            ]
+			};
+		</script>
+
+    <script type="text/javascript" src="/js/dojotoolkit/dojo/dojo.js"></script>
+
+  </head>
+
+  <body class="claro">
+    <div id="CheckboxTree">
+      <script type="text/javascript">
+      require(["indexedDB/IDBEnvironment!enforce"], function (indexedDB) {
+
+						function onError( event ) {
+							console.log( "Error: " + event.target.identity );
+							console.log(event);
+						}
+
+						indexedDB.deleteDatabase("myDatabase");
+
+						// Open database and add the 'upgradeneeded', 'onsuccess' and 'onerror'
+						// event handlers.
+						var openReq0 = indexedDB.open("myDatabase");
+						openReq0.onupgradeneeded = function upgrade0(event) {
+							// This is called because 'myDatabase' does not exist...
+							console.log( "Upgradeneeded - openReq0" );
+							var dbConn   = this.result;
+							// Create three stores in random order...
+							console.log( "Create stores...");
+							var store0 = dbConn.createObjectStore("myStore_Z", {keyPath:"name"});
+							var store1 = dbConn.createObjectStore("myStore_A", {keyPath:"name"});
+							var store2 = dbConn.createObjectStore("myStore_K", {keyPath:"name"});
+							var index  = store2.createIndex("myIndex", "lastname", {unique: false});
+
+							// Add some records....
+							store2.add( { name:"Abe", lastname: "Simpson"} );
+							store2.add( { name:"Homer", lastname: "Simpson"} );
+							store2.add( { name:"Marge", lastname: "Simpson"} );
+
+						}
+						openReq0.onsuccess = function (event) {
+							var dbConn = this.result;
+							console.log( "{openReq0} Database ["+dbConn.name+"] successfully opened.");
+							dbConn.onversionchange = function( event ) {
+								console.log( "{openReq0} Version Change requested." );
+								this.close();
+							}
+							// List all store names, they must be in ascending  order.
+							for (var i=0; i<dbConn.objectStoreNames.length; i++) {
+								console.log( "Store: " + dbConn.objectStoreNames.item(i));
+							}
+						}
+						openReq0.onerror = onError;
+
+						var delReq0 = indexedDB.open("myDatabase", 2);
+						delReq0.onupgradeneeded = function upgrade0(event) {
+							console.log( "Upgradeneeded - delReq0" );
+							var dbConn   = this.result;
+							// Delete a single store...
+							dbConn.deleteObjectStore("myStore_K");
+						}
+						delReq0.onsuccess = function (event) {
+							var dbConn   = this.result;
+							console.log( "{delReq0} Database ["+dbConn.name+"] successfully opened.");
+
+							// List all store names, they must be in ascending  order.
+							console.log( "Store list after deletion.");
+							for (var i=0; i<dbConn.objectStoreNames.length; i++) {
+								console.log( "Store: " + dbConn.objectStoreNames.item(i));
+							}
+						}
+						delReq0.onerror = onError;
+
+        });
+      </script>
+    </div>
+  </body>
+</html>

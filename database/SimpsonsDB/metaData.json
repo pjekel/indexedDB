@@ -1,0 +1,12 @@
+{
+	"name":"myDatabase",
+	"description":"My Simpsons database",
+	"stores": [
+			{ "name":"characters", "storeOptions":{ "keyPath":"name", "autoIncrement":false },
+				"indexes": [
+						{"name":"parents", "keyPath":"parent", "indexOptions":{"unique":false, "multiEntry":true}}
+				 ],
+				"url":"./Simpsons.json"
+			}
+	]
+}
