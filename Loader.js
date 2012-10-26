@@ -8,12 +8,12 @@
 //	2 - The Academic Free License	 (http://trac.dojotoolkit.org/browser/dojo/trunk/LICENSE#L43)
 //
 define(["dojo/_base/lang",
-				"dojo/Deferred",
 				"dojo/request/xhr",
 				"./dom/event/Event",
-				"./IDBObjectStore",
-				"./util/Keys"
-			 ], function (lang, Deferred, xhr, Event, IDBObjectStore, Keys) {
+				"./promise/PromiseF",
+				"./util/Keys",
+				"./IDBObjectStore"
+			 ], function (lang, xhr, Event, Promise, Keys, IDBObjectStore) {
 	"use strict";
 
 	var loaderOptions = {url: null, data: null, dataType: "json"};
@@ -46,11 +46,11 @@ define(["dojo/_base/lang",
 		// store:
 		//		The IDBObjectStore for which the data is being loaded.
 		// ldrDef:
-		//		A Deferred (promise) associated with the overall load process.
+		//		A Promise associated with the overall load process.
 		// tag:
 		//		Private
 		var dataArray = dataset;
-		var deferred  = params.deferred;
+		var promise   = params.promise;
 		var objStore  = params.store;
 		var unique    = params.unique;
 		var keyPath;
@@ -78,7 +78,7 @@ define(["dojo/_base/lang",
 					value = object;
 					objStore._storeRecord( {store: objStore, value: object, noOverwrite: unique} );
 				});
-				deferred.resolve(result);
+				promise.resolve(result);
 			} catch(err) {
 				// Something is wrong with the data, clear the objStore and reject the load
 				// request.  The object that violated the objStore constraints is stored on
@@ -86,11 +86,11 @@ define(["dojo/_base/lang",
 				// are errors related to the key path or lack thereof.
 				var event = new Event( "error", {source: objStore, error: err, data: value});
 				objStore._clearRecords( objStore );
-				deferred.reject(event);
+				promise.reject(event);
 			}
 		} else {
 			var event = new Event( "error", {source: objStore, error: new TypeError("Invalid dataset"), status: 0});
-			deferred.reject(event);
+			promise.reject(event);
 		}
 	}
 
@@ -106,7 +106,7 @@ define(["dojo/_base/lang",
 		// store:
 		//		The IDBObjectStore for which the data is being loaded.
 		// ldrDef:
-		//		A Deferred (promise) associated with the overall load process.
+		//		A Promise associated with the overall load process.
 		// tag:
 		//		Private
 		var result = xhr(url, {method:"GET", handleAs: params.dataType, preventCache: true, failOK: true});
@@ -117,7 +117,7 @@ define(["dojo/_base/lang",
 			function(err) {			// xhr failed
 				correctException(err);
 				var event = new Event( "error", { source: params.store, error: err, status: err.response.status });
-				params.deferred.reject(event);
+				params.promise.reject(event);
 			});
 	}
 
@@ -135,7 +135,7 @@ define(["dojo/_base/lang",
 			//		A promise.
 			// tag:
 			//		Private
-			var ldrDef = new Deferred();
+			var ldrDef = new Promise();
 			var result = xhr(url, {method:"GET", handleAs: "json", preventCache: true});
 			result.then(
 				function (data) {
@@ -173,13 +173,13 @@ define(["dojo/_base/lang",
 			//		A promise.
 			// tag:
 			//		Private
-			var ldrDef = new Deferred();
+			var ldrDef = new Promise();
 			var result;
 
 			if (store instanceof IDBObjectStore) {
 				var storeOptions = lang.mixin( loaderOptions, optionalParameters || {});
 				var source = storeOptions.data || storeOptions.url || null;
-				var params = { deferred: ldrDef, dataType: storeOptions.dataType, unique: storeOptions.unique,
+				var params = { promise: ldrDef, dataType: storeOptions.dataType, unique: storeOptions.unique,
 											 store: store };
 
 				if (source) {
@@ -189,7 +189,7 @@ define(["dojo/_base/lang",
 						loadFromData( source, params );
 					}
 				} else {
-					// Loader called without a data source, resolve deferred immediately.
+					// Loader called without a data source, resolve promise immediately.
 					result = {store: store, status:200};
 					ldrDef.resolve( result );
 				}
@@ -199,7 +199,7 @@ define(["dojo/_base/lang",
 																							status: 400});
 				ldrDef.reject( event );
 			}
-			return ldrDef.promise;
+			return ldrDef;
 		}
 	} /* end Loader() */
 

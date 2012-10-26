@@ -140,7 +140,7 @@ define(["./dom/error/DOMException",
 			}
 		}
 
-		function onDone (event) {
+		function onDone (/*Event*/ event) {
 			// summary:
 			//		This is the transaction 'done' event handler. Whenever a transaction
 			//		for this connection is done, that is, it finished or is aborted, the

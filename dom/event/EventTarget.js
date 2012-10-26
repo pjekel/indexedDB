@@ -7,12 +7,11 @@
 //	1 - The "New" BSD License			 (http://trac.dojotoolkit.org/browser/dojo/trunk/LICENSE#L13)
 //	2 - The Academic Free License	 (http://trac.dojotoolkit.org/browser/dojo/trunk/LICENSE#L43)
 //
-define(["dojo/_base/declare",
-				"dojo/_base/lang",
+define(["dojo/_base/lang",
 				"../error/DOMError",
 				"./EventDefault",
 				"./Event"
-			], function (declare, lang, DOMError, EventDefault, Event) {
+			], function (lang, DOMError, EventDefault, Event) {
 "use strict";
 	// module:
 	//		indexedDB/EventTarget
@@ -172,6 +171,7 @@ define(["dojo/_base/declare",
 			// summary:
 			//		Registers an event listener. This method is to provide support for
 			//		the dojo/on module but can also be use as an alias for addEventListener.
+			//		However, this method only registers event listeners for the bubble phase.
 			// type:
 			//		Specifies the Event.type associated with the event for which the user
 			//		is registering. Type is either a string or a list of comma separated

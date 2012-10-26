@@ -23,6 +23,8 @@ define(["dojo/has"], function (has) {
 		//		Implementation of the IDBCursor interface.
 		// keyRange:
 		//		Implementation of the IDBKeyRange interface.
+		// worker:
+		//		Transaction mamager (indexedDB for dojo only).
 		// tag:
 		//		Private
 		window.IDBTransaction = transaction;
@@ -54,23 +56,39 @@ define(["dojo/has"], function (has) {
 		//		flags is specified or not, like:
 		//
 		//		|		require(["indexedDB/IDBEnvironment!"],
+		//		|			function (indexedDB) {
+		//		|							...
+		//		|		});
 		//
 		// tag:
 		//		Public
 
-		load: function (id, require, callback) {
+		load: function (/*String*/ id, /*Function*/ require, /*Function*/ callback) {
 			// summary:
 			//		Dojo AMD loader entry point. This method is called by the Dojo AMD
-			//		loader.
+			//		loader and tests if native indexedDB support is available in the
+			//		browser.
 			// id:
 			//		The string to the right of the exclamation mark (!).
 			// require:
-			//		AMD require
+			//		AMD require method.
 			// callback:
 			//		Dojo AMD Loader callback function. The callback is called with the
 			//		global instance of indexedDB as it argument.
 
 			var indexedDB = window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB || window.msIndexedDB;
+			if (indexedDB && id !== "enforce") {
+				// Test if this is by any chance an older indexedDB implementation.
+				var db = window.IDBDatabase || window.webkitIDBDatabase || window.mozIDBDatabase || window.msIDBDatabase;
+				try {
+					if (db.prototype.setVersion) {
+						console.warn("Legacy native indexedDB (setVersion) is not supported.");
+						indexedDB = null;		// Force indexedDB for dojo..
+					}
+				} catch(err) {
+					// db apparently is not what we expected it to be, now what....
+				}
+			}
 			if (!indexedDB || id === "enforce") {
 				console.info( "Loading dojo indexedDB...");
 				// Load all required IDB interfaces/dependencies.
@@ -90,16 +108,18 @@ define(["dojo/has"], function (has) {
 					callback( indexedDB );
 				});
 			} else {
-				// TODO: set browser vendor specific global transaction, cursor and key range
-				//			 interfaces.
-				console.info( "Loading native indexedDB...");
-				callback( indexedDB );	// Return native indexedDB
+				if (window.webkitIndexedDB) {
+					setEnvironment( webkitIDBTransaction, webkitIDBCursor, webkitIDBKeyRange, null );
+				}
+				console.info( "Using native indexedDB support...");
+				callback( indexedDB );	// Return native indexedDB (IDBFactory)
 			}
 			has.add("dojo-indexedDB", true);
 		}
 
 	} /* end IDBEnvironment */
 
+	// Just in case somebody forgets the exclamation mark after all :)
 	defineProperty( IDBEnvironment, "load", {enumerable: false});
 
 	return IDBEnvironment;

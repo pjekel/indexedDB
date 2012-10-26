@@ -44,7 +44,7 @@ define([], function() {
 			return;
 		}
 
-		this.only = function ( value ) {
+		this.only = function (/*any*/ value ) {
 			// summary:
 			//		Creates and returns a new key range with both lower and upper set
 			//		to value and both lowerOpen and upperOpen set to false.
@@ -52,10 +52,10 @@ define([], function() {
 			//		The only value.
 			// tag:
 			//		Public
-			return new IDBKeyRange( value, value, false, false );
+			return new IDBKeyRange(/*any*/ value,/*any*/ value, false, false );
 		};
 
-		this.lowerBound = function ( lower, open ) {
+		this.lowerBound = function (/*any*/ lower,/*Boolean*/ open ) {
 			// summary:
 			//		Creates and returns a new key range with lower set to lower, lowerOpen
 			//		set to open, upper set to undefined and and upperOpen set to true.
@@ -74,7 +74,7 @@ define([], function() {
 			}
 		};
 
-		this.upperBound = function ( upper, open ) {
+		this.upperBound = function (/*any*/ upper,/*Boolean*/ open ) {
 			// summary:
 			//		Creates and returns a new key range with lower set to undefined,
 			//		lowerOpen set to true, upper set to upper and and upperOpen set
@@ -94,7 +94,7 @@ define([], function() {
 			}
 		};
 
-		this.bound = function ( lower, upper, lowerOpen, upperOpen ) {
+		this.bound = function (/*any*/ lower,/*any*/ upper,/*Boolean*/ lowerOpen,/*Boolean*/ upperOpen ) {
 			// summary:
 			//		Creates and returns a new key range with lower set to lower, lowerOpen
 			//		set to lowerOpen, upper set to upper and upperOpen set to upperOpen.

@@ -7,11 +7,10 @@
 //	1 - The "New" BSD License			 (http://trac.dojotoolkit.org/browser/dojo/trunk/LICENSE#L13)
 //	2 - The Academic Free License	 (http://trac.dojotoolkit.org/browser/dojo/trunk/LICENSE#L43)
 //
-define (["dojo/Deferred",
-				 "./dom/event/Event",
+define (["./dom/event/Event",
 				 "./dom/event/EventDefault",
 				 "./IDBRequest"
-				], function (Deferred, Event, EventDefault, IDBRequest) {
+				], function (Event, EventDefault, IDBRequest) {
 	"use strict";
 
 	// Requires JavaScript 1.8.5
@@ -128,7 +127,7 @@ define (["dojo/Deferred",
 			//	therefore the firing of the 'success' event is handled by IDBFactory.
 
 			if (this.state == IDLE) {
-				this.deferred.then(
+				this.promise.then(
 					function (result) {
 						request.result = (result !== undefined) ? result : request.result;
 						request.error  = undefined;

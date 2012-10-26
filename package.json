@@ -1,0 +1,22 @@
+{
+	"name": "indexedDB",
+	"author": "Peter Jekel",
+	"version":"0.9.0",
+	"description": "W3C indexedDB implementation for dojo",
+	"licenses": [
+		 {
+			 "type": "BSD",
+			 "url": "http://trac.dojotoolkit.org/browser/dojo/trunk/LICENSE#L13"
+		 },
+		 {
+			 "type": "AFLv2.1",
+			 "url": "http://trac.dojotoolkit.org/browser/dojo/trunk/LICENSE#L43"
+		 }
+	],
+	"dependencies": {
+		"dojo" : "1.8"
+	},
+	"keywords": [ "indexedDB", "store", "Dojo" ],
+	"homepage": "http://thejekels.com",
+	"dojoBuild": "indexedDB.profile.js"
+}

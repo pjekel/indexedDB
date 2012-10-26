@@ -7,17 +7,17 @@
 //	1 - The "New" BSD License			 (http://trac.dojotoolkit.org/browser/dojo/trunk/LICENSE#L13)
 //	2 - The Academic Free License	 (http://trac.dojotoolkit.org/browser/dojo/trunk/LICENSE#L43)
 //
-define(["dojo/promise/all",
-				"./dom/error/DOMException",
+define(["./dom/error/DOMException",
 				"./dom/event/Event",
 				"./dom/event/EventTarget",
 				"./dom/string/DOMStringList",
+				"./promise/PromiseList",
+				"./util/url",
 				"./IDBObjectStore",
 				"./IDBIndex",
-				"./Loader",
-				"./util/url"
-			 ], function (PromiseAll, DOMException, Event, EventTarget, DOMStringList,
-										 IDBObjectStore, IDBIndex, Loader, url) {
+				"./Loader"
+			 ], function (DOMException, Event, EventTarget, DOMStringList, PromiseList,
+										 url, IDBObjectStore, IDBIndex, Loader ) {
 
 	// Requires JavaScript 1.8.5
 	var defineProperty = Object.defineProperty;
@@ -27,20 +27,29 @@ define(["dojo/promise/all",
 	function Database (/*String*/ name, /*Object?*/ databaseOptions) {
 		// summary:
 		//		Implements a simple in memory database. (e.g. a collection of object
-		//		stores).
+		//		stores). The individual stores can be pre-populated by specifying a
+		//		URL or an in-memory data array. This method is called by IDBFactory
+		//		open() and deleteDatabase().
+		//
+		//		The database(s) created is what the indexedDB API will operate on, to
+		//		enable the indexedDB interfaces in your environment see IDBEnvironment
+		//		for details on how to load them.
 		// name:
 		//		Database name.
 		// databaseOptions:
-		//		JavaScript key/value pairs object.
-		//		Array of store definitions. If specified the stores are loaded when the
-		//		database is created. A store definition is a simple JavaScript object
-		//		with two properties: name and storeOptions (See Loader.js for details).
-		//		For example:
+		//		JavaScript object. If databaseOptions is omitted all stores and indexes
+		//		need to be created and populated using the indexedDB API.
 		//
-		//			{ name: "myStore", storeOptions: { keyPath:"name", data: myLocalData} };
-		//			{ name: "myStore", storeOptions: { keyPath:"name", url:"storeData.json"} };
+		//			{ stores: [
+		//					{ url:"./Simpsons.json", name:"characters", storeOptions:{keyPath:"name"},
+		//						indexes: [
+		//							{ name:"parents", keyPath:"parent", indexOptions:{multiEntry:true}}
+		//						]
+		//					}
+		//				]
+		//			};
 		// tag:
-		//		Public
+		//		Private
 
 		var dbPath       = url.resolve( name + "/" );
 		var database     = this;
@@ -56,15 +65,13 @@ define(["dojo/promise/all",
 		var errorHndl;
 		var loadHndl;
 
-		EventTarget.call(this);
+		EventTarget.call(this);		// Inherit from EventTarget
 
 		this.deletePending = false;
 		this.ready         = false;
 		this.origin        = url.getOrigin( name );
 		this.name          = name;
-		this.description   = "";
 		this.version       = 0;
-		this._isDatabase   = true;
 
 		defineProperty( this, "objectStores", {
 			get: function() {return objectStores;},
@@ -75,6 +82,10 @@ define(["dojo/promise/all",
 			get: function() {return indexByStore;},
 			enumerable: true
 		});
+
+		//=========================================================================
+		// Declare the 'onload' and 'onerror' event handler properties such that
+		// an assignment automatically result in the event handler registration.
 
 		defineProperty( this, "onerror", {
 			get:	function() {return errorCallback;},
@@ -115,6 +126,7 @@ define(["dojo/promise/all",
 			if (!errorCount) {
 				setTimeout( function() {
 					database.dispatchEvent( new Event( "load" ));
+					database.ready = true;
 				}, 0 );
 			}
 		}
@@ -141,6 +153,7 @@ define(["dojo/promise/all",
 			//		specified the stores are loaded when the database is created.
 			//		A store definition is a simple JavaScript object with the following
 			//		properties:
+			//
 			//			name:
 			//					String, Name of the object store.
 			//			storeOptions:
@@ -150,16 +163,24 @@ define(["dojo/promise/all",
 			//			url:
 			//					URL identifying the Remote location to load the store data from.
 			//			data:
+			//					An array of in memory record values. Each value is a JavaScript
+			//					key:value pairs object, example:
+			//
+			//						{name:"Homer", lastName:"Simpson", hair:"none" }
+			//
+			//			Note: if both the url and data properties are specified the data
+			//						property will be used.
 			//
 			//		examples:
 			//
 			//			{ name: "myStore", storeOptions: {keyPath:"name"}, data: myLocalData };
 			//
-			//			{ name: "Simpsons", storeOptions: {keyPath:"name"}, url:"./Simpsons.json",
-			//					indexes: [
-			//						{name:"parents", keyPath:"parent", indexOptions: {multiEntry:true}},
-			//						{name:"family", keyPath:"lastName", indexOptions: {multiEntry:false}}
-			//					]
+			//			{ name: "Simpsons", storeOptions: {keyPath:"name", autoIncrement:false},
+			//				url:"./Simpsons.json",
+			//				indexes: [
+			//					{name:"parents", keyPath:"parent", indexOptions: {multiEntry:true}},
+			//					{name:"family", keyPath:"lastName", indexOptions: {multiEntry:false}}
+			//				]
 			//			};
 			// tag:
 			//		Private
@@ -200,7 +221,7 @@ define(["dojo/promise/all",
 					}
 				});
 			}
-			var dbLoaded = new PromiseAll(promiseList);
+			var dbLoaded = new PromiseList(promiseList);
 			dbLoaded.then( fireLoad );
 		}
 
@@ -316,7 +337,7 @@ define(["dojo/promise/all",
 					throw new DOMException("ConstraintError", "Index with name ["+name+"] already exists" );
 				}
 			}
-		}
+		};
 
 		this.deleteDatabase = function () {
 			// summary:
@@ -329,7 +350,7 @@ define(["dojo/promise/all",
 			var storeNames = Object.keys( objectStores );
 			storeNames.forEach( this.deleteStore, this );
 			this._destoyed = true;
-		}
+		};
 
 		this.deleteIndex = function (/*String*/ storeName, /*String*/ indexName ) {
 			// summary:
@@ -357,9 +378,9 @@ define(["dojo/promise/all",
 			} else {
 				// TODO: database is corrupted, store MUST exist.
 			}
-		}
+		};
 
-		this.deleteStore = function (storeName) {
+		this.deleteStore = function (/*String*/ storeName) {
 			// summary:
 			//		Delete a store
 			// storeName:
@@ -400,9 +421,9 @@ define(["dojo/promise/all",
 			//		Public
 			var storeNames = Object.keys( objectStores ).sort();
 			return new DOMStringList( storeNames );
-		}
+		};
 
-		this.getIndexByStore = function (storeName) {
+		this.getIndexByStore = function (/*String*/ storeName) {
 			// summary:
 			//		Get the indexes for a given object store.
 			// storeName:
@@ -412,7 +433,7 @@ define(["dojo/promise/all",
 			// tag:
 			//		Public
 			return indexByStore[storeName] || {};
-		}
+		};
 
 		this.getStores = function (/*(String|String[])?*/ names) {
 			// summary:
@@ -447,39 +468,7 @@ define(["dojo/promise/all",
 			//		Public
 			this.version = newVersion;
 			return this.version;
-		}
-
-		this.signalReady = function () {
-			// summary:
-			//		Fire a 'ready' signal at the database but only once. This method is
-			//		called by IDBFactory when a versionchange transaction completes.
-			//		(See also versionChange() for additional details).
-			// tag:
-			//		Public
-			if (!this.ready) {
-				this.dispatchEvent( new Event("ready") );
-			}
-			this.ready = true;
-		}
-
-		this.versionChange = function () {
-			// summary:
-			//		Clear the database ready state. When a database connection wants to
-			//		initiate a versionchange transaction it calls this method so no new
-			//		connections are allowed until the transaction completes.
-			//
-			// NOTE:
-			//		Both this	method and signalReady() are used to alleviate a potential
-			//		race condition when the database is opened in repid succession each
-			//		open request with a different database version.	This race condition
-			//		is currently called-out as an issue in the indexedDB standard.
-			//		For additional information see:
-			//
-			//			http://www.w3.org/TR/IndexedDB/#versionchange--transaction-steps
-			// tag:
-			//		Public
-			this.ready = false;
-		}
+		};
 
 		//=========================================================================
 
@@ -488,7 +477,7 @@ define(["dojo/promise/all",
 				if (dbStores = databaseOptions.stores) {
 					dbStores = ((dbStores instanceof Array) ? dbStores : [dbStores]);
 				} else if (dbURL = databaseOptions.url) {
-					dbURL = url.resolve( dbURL, dbPath );
+					dbURL = url.resolve( require.toUrl(dbURL), "http://localhost" );
 				}
 			} else {
 				throw DOMException("InvalidAccessError", "Invalid databaseOptions parameter");
@@ -504,7 +493,6 @@ define(["dojo/promise/all",
 		} else if (dbURL) {
 			var result = Loader.metaData( this, dbURL );
 			result.then( function (metaData) {
-				this.description = metaData.description || "";
 				if (dbStores = metaData.stores) {
 					loadStores( dbStores );
 				}
@@ -518,7 +506,7 @@ define(["dojo/promise/all",
 	}
 
 	// Inherit from EventTarget
-	Database.prototype = new EventTarget;
+	Database.prototype = new EventTarget();
 	Database.prototype.constructor = Database;
 
 	return Database;

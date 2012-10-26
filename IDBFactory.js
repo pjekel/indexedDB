@@ -7,39 +7,68 @@
 //	1 - The "New" BSD License			 (http://trac.dojotoolkit.org/browser/dojo/trunk/LICENSE#L13)
 //	2 - The Academic Free License	 (http://trac.dojotoolkit.org/browser/dojo/trunk/LICENSE#L43)
 //
-define(["dojo/Deferred",
-				"./Database",
-				"./dom/error/DOMException",
+define(["./dom/error/DOMException",
 				"./dom/error/DOMError",
 				"./dom/event/Event",
-				"./IDBDatabase",
-				"./IDBOpenRequest",
+				"./promise/PromiseF",
 				"./util/Keys",
-				"./util/url"
-			 ], function (Deferred, Database, DOMException, DOMError, Event,
-										 IDBDatabase, IDBOpenRequest,
-										 Keys, url ) {
+				"./util/url",
+				"./Database",
+				"./IDBDatabase",
+				"./IDBOpenRequest"
+			 ], function (DOMException, DOMError, Event, Promise, Keys, url, Database,
+										 IDBDatabase, IDBOpenRequest ) {
 	"use strict";
 	// Requires JavaScript 1.8.5
 	var defineProperty = Object.defineProperty;
 
-	function fireVersionChange(IDBFactory, /*DatabaseName*/ name, /*number*/ version) {
+	function DBInfo (/*Database*/ database, /*Number*/ version) {
+		// summary:
+		//		Local database object. In order to handle a potential race condition
+		//		when mulitple open requests are issued in repid succession, each with
+		//		a different database version, a local database object is created with
+		//		the 'ready' state of the database. Note however, the ready state does
+		//		NOT represent any formal state of the actual database, it is merely
+		//		used to synchronize IDBOpenRequests when the race condition occurs.
+		// database:
+		//		An instance of Database.
+		// version:
+		//		Database version.
+		// tag:
+		//		Private
+
+		this.database = database;
+		this.version  = version;
+		this.isReady  = false;
+
+		this.ready = function (yesNo) {
+			if( this.isReady = yesNo ) {
+				this.database.dispatchEvent( new Event("ready") );
+			}
+		}
+	};
+
+	function fireVersionChange(/*IDBFactory*/ factory, /*DatabaseName*/ name, /*number*/ version) {
 		// summary:
 		//		Dispatch the "versionchange" event to all open connections associated
 		//		with the database being opened or deleted.   When all connections are
 		//		closed the promise returned is resolved.
+		// factory:
+		//		Instance of IDBFactory
+		// name:
+		// 		Database name
 		// version:
 		//		New version of the database. (null when DB is being deleted).
 		// returns:
 		//		A promise
 		// tag:
 		//		Private
-		var connections  = IDBFactory._getConnections( name );
+		var connections  = factory._getConnections( name );
 		var closePending = [];
-		var deferred     = new Deferred;
+		var promise      = new Promise();
 		var firedEvent   = false;
 
-		function closedHandler( event ) {
+		function closedHandler(/*Event*/ event ) {
 			// summary:
 			//		Connection closed event handler. Whenever a database connection is
 			//		closed a 'closed' event is recieved and the associated connection
@@ -57,7 +86,7 @@ define(["dojo/Deferred",
 												return true;
 											}, this);
 			if (closePending.length == 0) {
-				deferred.resolve();
+				promise.resolve();
 			}
 		}
 
@@ -78,16 +107,17 @@ define(["dojo/Deferred",
 		// If no event was fired (there are no open connections) resolve the promise
 		// immediately.
 		if (!firedEvent) {
-			deferred.resolve();
+			promise.resolve();
 		}
-		return deferred.promise;
+		return promise;
 	}
 
 	function IDBFactory() {
 		// summary:
-		//		Implements the IDBFactory interface
+		//		Implements the IDBFactory interface. The IDBFactory is instanciated by
+		//		IDBEnvironment, IDBEnvironment is the only module to call this method.
 		// tag:
-		//		Public
+		//		Private
 
 		var factory        = this;
 		var databases      = {};
@@ -113,7 +143,7 @@ define(["dojo/Deferred",
 		//=========================================================================
 		// Public methods
 
-		this.cmp = function (first, second) {
+		this.cmp = function (/*any*/ first, /*any*/ second) {
 			// summary:
 			//		This method compares two keys. The method returns 1 if the first key
 			//		is greater than the second, -1 if the first is less than the second,
@@ -137,10 +167,11 @@ define(["dojo/Deferred",
 			// tag:
 			//		Public
 
-			function _deleteDB( args, request) {
-				var dbURL    = url.resolve( args.name, "http://localhost" );
+			function _deleteDB( kwArgs, request) {
+				var dbURL    = url.resolve( require.toUrl(kwArgs.name), "http://localhost" );
 				var dbName   = dbURL.replace(/\./g,"%2E" );
-				var database = databases[dbName];
+				var dbObject = databases[dbName];
+				var database = dbObject ? dbObject.database : null;
 
 				if (database) {
 					database.deletePending = true;
@@ -163,7 +194,7 @@ define(["dojo/Deferred",
 					);
 
 					setTimeout( function () {
-						if (!promise.isFulfilled()) {
+						if (!promise.resolved) {
 							var event = new Event( "blocked", { newVersion: null, oldVersion: database.version });
 							request.dispatchEvent(event, request);	// Fire at the request only.
 						}
@@ -194,27 +225,34 @@ define(["dojo/Deferred",
 			// tag:
 			//		Public
 
-			function _open(args, request ) {
+			function _openAsync(/*Object*/ kwArgs, /*IDBOpenRequest*/ request ) {
 				// summary:
-				// args:
+				//		Entry point for the asynchronous IDBOpenRequest
+				// kwArgs:
+				//		Key:value pairs object.
 				// request:
+				//		IDBOpenRequest
 				// tag:
 				//		Private
 
-				function versionChange(database, dbConn, newVersion, request) {
+				function versionChange(/*DNInfo*/ dbObject, /*IDBDatabase*/ dbConn, /*Number*/ newVersion, request) {
 					// summary:
-					// database:
+					//		The version change procedure.
+					// dbObject:
 					// dbConn
 					// newVersion:
 					// request:
 					//		A IDBOpenRequest
 					// tag:
 					//		Private
-					var promise    = fireVersionChange( factory, dbConn.name, newVersion);
 					var storeNames = dbConn.objectStoreNames;
+					var database   = dbObject.database;
 					var oldVersion = database.version;
+					var promise;
 
-					database.versionChange();
+					dbObject.ready(false);
+
+					promise = fireVersionChange( factory, dbConn.name, newVersion);
 					promise.then(
 						function () {
 							var transaction = dbConn.transaction( dbConn.objectStoreNames, IDBTransaction.VERSION_CHANGE );
@@ -223,23 +261,22 @@ define(["dojo/Deferred",
 							transaction.on( "start", function (event) {
 								var event = new Event("upgradeneeded", {oldVersion: oldVersion,
 																												 newVersion: newVersion});
-
 								dbConn.version = database.setVersion( newVersion );
 								request.result = dbConn;
-								transaction._queue( request );
+								transaction._queue( request );	// Attach request to the transaction.
 								request.dispatchEvent(event);
 							});
 							// Only when the versionchange transaction is complete do we mark
 							// the database as ready and fire the success event at the request.
 							transaction.on( "complete", function (event) {
-								database.signalReady();
+								dbObject.ready(true);
 								request._fireSuccess(new Event("success"), [request]);
 							});
 							// If the versionchange transaction is aborted, set the connection
 							// to its default values...
 							transaction.on( "abort", function (event) {
 								// TODO: rollback store and index creation...
-								database.signalReady();
+								dbObject.ready(true);
 								dbConn.version = 0;
 								dbConn.objectStoreNames = null;
 							});
@@ -262,7 +299,7 @@ define(["dojo/Deferred",
 					// a potential issue in the current indexedDB standard. For additional
 					// information see:
 					// 	 http://www.w3.org/TR/IndexedDB/#versionchange--transaction-steps
-					if (!promise.isFulfilled()) {
+					if (!promise.resolved) {
 						request._timeout = setTimeout( function () {
 							var event = new Event( "blocked", { newVersion: version, oldVersion: dbConn.version });
 							request.dispatchEvent(event, [request]);	// Fire at the request only.
@@ -270,7 +307,7 @@ define(["dojo/Deferred",
 					}
 				} /* end fireVersionChange() */
 
-				function connect(/*database*/ database, /*Number*/ version, /*IDBOpenRequest*/ request) {
+				function connect(/*database*/ dbObject, /*Number*/ version, /*IDBOpenRequest*/ request) {
 					// summary:
 					//		Create a connection. The connection is represented by an IDBDatabase
 					//		object and returned as the result of the IDBOpenRequest.
@@ -282,10 +319,11 @@ define(["dojo/Deferred",
 					//		An IDBOpenRequest
 					// tag:
 					//		Private
+					var database = dbObject.database;
 					var dbConn = new IDBDatabase( database );
 					try {
 						if (database.version < version) {
-							versionChange( database, dbConn, version, request );
+							versionChange( dbObject, dbConn, version, request );
 						} else {
 							if (database.version > version) {
 								throw new DOMException("VersionError");
@@ -309,33 +347,34 @@ define(["dojo/Deferred",
 					}
 				} /* end connect() */
 
-				var dbURL    = url.resolve( args.name, "http://localhost" );
+				var dbURL    = url.resolve( require.toUrl(kwArgs.name), "http://localhost" );
 				var dbName   = dbURL.replace(/\./g,"%2E" );
-				var database = databases[dbName];
-				var version  = args.version;
-				var options  = args.options;
+				var dbObject = databases[dbName];
+				var database = dbObject ? dbObject.database : null;
+				var version  = kwArgs.version;
+				var options  = kwArgs.options;
 
 				if (database) {
 					// Make sure there is no 'versionchange' transaction running and the
 					// deletePending flag on the database isn't set.
-					var vcTrans = IDBWorker.getVCTransaction( database );
+					var vcTrans  = IDBWorker.getVCTransaction( database );
 					if (vcTrans || database.deletePending) {
 						if (vcTrans) {
 							// Wait for the version change transaction to complete...
 							vcTrans.on( "done", function(event) {
-								connect( database, version, request );
+								connect( dbObject, version, request );
 							});
 						} else {
 							// Wait for the database to be deleted....
 							var handle = database.on("delete", function() {
 								handle.remove();
 								setTimeout( function() {
-									_open( args, request );
+									_openAsync( kwArgs, request );
 								}, 0);
 							});
 						}
 					} else {
-						if (!database.ready) {
+						if (!dbObject.isReady) {
 							// RACE CONDITION:
 							//		Another connection is still in the process of initiating a
 							//		version change but the associated transaction hasn't started
@@ -345,19 +384,20 @@ define(["dojo/Deferred",
 							var handle = database.on( "ready", function(event) {
 								handle.remove();
 								setTimeout( function() {
-									_open( args, request );
+									_openAsync( kwArgs, request );
 								}, 0);
 							});
 						} else {
-							connect( database, version, request );
+							connect( dbObject, version, request );
 						}
 					}
-				} else {
+				} else 	{
 					// It's a new database, wait for the database 'load' event before
 					// connecting or, in case of an error, reject the IDBOpenRequest.
-					database = new Database( dbName, options );
+					dbObject = new DBInfo( new Database( dbName, options ), version );
+					database = dbObject.database;
 					database.on( "load", function (event) {
-						connect( database, version, request );
+						connect( dbObject, version, request );
 					});
 					database.on( "error", function (event) {
 						var srcType = "", srcName = "", srcDesc = "";
@@ -373,9 +413,9 @@ define(["dojo/Deferred",
 						message = srcDesc + "error: {" + event.error + "}, status code: " + event.status;
 						request.reject( new DOMError( event.error.name, message ));
 					});
-					databases[dbName] = database;
+					databases[dbName] = dbObject;
 				}
-			} /* end _open() */
+			} /* end _openAsync() */
 
 			//===============================
 
@@ -392,10 +432,11 @@ define(["dojo/Deferred",
 						throw new TypeError("Parameter [stores] requires an objects.");
 					}
 				}
-
 				// Compose a new IDBOpenRequest. Because the request is not under the
 				// control of a transaction excute the request directly.
-				var request = new IDBOpenRequest( null, _open, {name: name, version: version, options: databaseOptions} );
+				var request = new IDBOpenRequest( null, _openAsync, {name: name,
+																															version: version,
+																															options: databaseOptions} );
 				return request._execute();
 			} else {
 				throw new TypeError("Parameter [name] requires a string.");

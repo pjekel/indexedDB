@@ -167,7 +167,7 @@ define(["./dom/error/DOMException",
 			return null;
 		}
 
-		function onAbort(event) {
+		function onAbort(/*Event*/ event) {
 			// summary:
 			//		The local 'onabort' event handler.
 			// event:
@@ -181,20 +181,21 @@ console.info("Transaction ["+this.identity+"] aborted.");
 			this._scope   = [];
 		}
 
-		function onComplete(event) {
+		function onComplete(/*Event*/ event) {
 			// summary:
 			//		The local 'oncomplete' event handler.
 			// event:
 			//		DOM style event
 			// tag:
 			//		Private
+// console.info("Transaction ["+this.identity+"] complete.");
 			requestList  = [];
 			this._running = false;
 			this._done    = true;
 			this._scope   = [];
 		}
 
-		function onError(event) {
+		function onError(/*Event*/ event) {
 			// summary:
 			//		The 'onerror' event handler.
 			// event:
@@ -210,7 +211,7 @@ console.info("Transaction ["+this.identity+"] aborted.");
 		//========================================================================
 		// Private methods
 
-		this._abortTransaction = function( transaction, error ) {
+		this._abortTransaction = function(/*IDBTransaction*/ transaction, /*any*/ error ) {
 			// summary:
 			//		Abort a transaction. Any request, idle or active, is notified
 			// tag:

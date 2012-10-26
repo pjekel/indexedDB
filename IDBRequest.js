@@ -8,12 +8,12 @@
 //	2 - The Academic Free License	 (http://trac.dojotoolkit.org/browser/dojo/trunk/LICENSE#L43)
 //
 define(["dojo/_base/lang",
-				"dojo/Deferred",
 				"./dom/event/EventTarget",
 				"./dom/event/Event",
 				"./dom/error/DOMException",
-				"./dom/error/DOMError"
-			 ], function (lang, Deferred, EventTarget, Event, DOMException, DOMError) {
+				"./dom/error/DOMError",
+				"./promise/PromiseF"
+			 ], function (lang, EventTarget, Event, DOMException, DOMError, Promise) {
 	"use strict";
 
 	// Requires JavaScript 1.8.5
@@ -43,12 +43,13 @@ define(["dojo/_base/lang",
 		//		object equals scope.
 		// tag:
 		//		Public
-		var deferred = new Deferred;;
-		var scope    = scope;
-		var method   = method;
-		var request  = this;
-		var args     = args;
-		var done     = false;
+
+		var promise = new Promise();		// Need note below...
+		var scope   = scope;
+		var method  = method;
+		var request = this;
+		var args    = args;
+		var done    = false;
 
 		var successCallback;
 		var successHndl;
@@ -62,24 +63,40 @@ define(["dojo/_base/lang",
 		this.identity = "request_" + requestId++;			// For debug purpose only...
 		this.state    = IDLE;
 		this.source   = source = source || null;
-		this.result;
-		this.error;
+		this.result   = undefined;
+		this.error    = undefined;
 
-		defineProperty( this, "deferred", {
-			get:	function () { return deferred },
-			set:	function (value) { deferred = value; },
+		//===================	A NOTE ON THE USE OF PROMISES ======================
+		//
+		//	Technically there is no need for the use of a promise with any IDBRequest
+		//	as the request, by default, is event driven. Only IDBOpenRequest relies on
+		//	the use of a promise on completion of the upgradeneeded event handler.
+		//	However, for the time being we keep it in place in case we want to switch
+		//	from an event driven model (the W3C standard) to a fully promise driven
+		//	model. Whenever, if ever, the latter becomes the case we also would need
+		//	to switch from a Promise/F to a Promise/A to allow for chained thens.
+		//	On the other hand, removing the use of the promise would boost performance
+		//	eventhough a Promise/F(ast) is already stripped to its bear minimum.
+		// TODO:
+		//	Peformance tests on large datasets is required to determine if the use of
+		//	the promise can stay or should go.
+		//
+		defineProperty( this, "promise", {
+			get:	function () { return promise },
+			set:	function (value) { promise = value; },
 			enumerable: false
 		});
 
 		defineProperty( this, "resolve", {
-			get:	function () { return deferred.resolve; },
+			get:	function () { return promise.resolve; },
 			enumerable: false
 		});
 
 		defineProperty( this, "reject", {
-			get:	function () { return deferred.reject; },
+			get:	function () { return promise.reject; },
 			enumerable: false
 		});
+		//=========================================================================
 
 		defineProperty( this, "done", {
 			get:	function () { return done; },
@@ -153,18 +170,18 @@ define(["dojo/_base/lang",
 		//=========================================================================
 		// Private methods
 
-		this._recycle = function( newMethod, newArgs, newScope ) {
+		this._recycle = function(/*Function*/ newMethod, /*Object*/ newArgs, /*Object*/ newScope ) {
 			// summary:
 			//		Recyle the current request. Instead of creating a new IDBRequest the
 			//		current request is re-used.   Recyling or re-using a request is ONLY
 			//		allowed by the cursor.continue() or cursor.advance() methods.
-			// method:
+			// newMethod:
 			//		Method to be called when executing the IDBRequest. The method is called
 			//		as method(args, request);
-			// args:
+			// newArgs:
 			//		JavaScript 'key:value' pairs object which is passed as the first
 			//		argument to the method.
-			// scope:
+			// newScope:
 			//		The scope use when executing the method. Inside the method the 'this'
 			//		object equals scope.
 			// tag:
@@ -176,11 +193,15 @@ define(["dojo/_base/lang",
 			scope  = newScope;
 		}
 
-		this._fireSuccess = function (/*DOMEvent?*/ event, /*EventTarget[]?*/ propagationPath) {
+		this._fireSuccess = function (/*Event?*/ event, /*EventTarget[]?*/ propagationPath) {
 			// summary:
 			//		Fire a success event at the request.
 			// event:
+			//		Optional DOM style event, if specified it overwrites the default style
+			//		success event.
 			// propagationPath:
+			//		Optional propagation path. The proprgation path is an array of DOM
+			//		event targets. (see /dom/event/EventTarget.js)
 			// tag:
 			//		Private
 			request.done     = true;
@@ -193,8 +214,8 @@ define(["dojo/_base/lang",
 			// cursur request. Note, cursor.continue() and cursor.advance() are the only
 			// methods allowed to set the request state to REPEAT.
 			if (request.state == REPEAT) {
-				request.deferred = new Deferred;
-				request.state    = IDLE;
+				request.promise = new Promise();
+				request.state   = IDLE;
 			}
 			if (request.transaction) {
 				// If any of the event handlers threw an exception we must abort the
@@ -211,10 +232,12 @@ define(["dojo/_base/lang",
 			}
 		}
 
-		this._fireError = function (/*DOMEvent?*/ event) {
+		this._fireError = function (/*Event?*/ event) {
 			// summary:
 			//		Fire an error event at the request.
 			// event:
+			//		Optional DOM style event, if specified it overwrites the default style
+			//		error event.
 			// tag:
 			//		Private
 			request.done = true;
@@ -236,10 +259,46 @@ define(["dojo/_base/lang",
 			}
 		}
 
+/*
+//		THE IDBRequest EXECUTION MODEL WITHOUT A PROMISE WOULD LOOK LIKE THIS:
+
 		this._execute = function () {
 			// summary:
-			//		Execute a request. The method called is responsible to either resolve
-			//		or reject the request.
+			//		Execute a request.
+			// tag:
+			//		Private
+			function _execMethod () {
+				this.state = ACTIVE;
+				try {
+					var result = scope ? method.apply(scope, [args, this]) : method(args, this);
+					request.result = (result !== undefined) ? result : request.result;
+					request.error  = undefined;
+					request._fireSuccess(null);
+				} catch(err) {
+					console.error(err);
+					request.result = undefined;
+					request.error  = error || request.error;
+					request._fireError(null);
+				}
+			}
+
+			if (this.state == IDLE) {
+				this.state = PENDING;
+				setTimeout( function () {
+											_execMethod.call(request);
+										}, 0 );
+			} else {
+				throw new DOMException("InvalidStateError");
+			}
+			return this;
+		};
+*/
+
+//		THE IDBRequest EXECUTION MODEL WITH A PROMISE WOULD LOOK LIKE THIS:
+
+		this._execute = function () {
+			// summary:
+			//		Execute a request.
 			// tag:
 			//		Private
 			function _execMethod () {
@@ -254,7 +313,7 @@ define(["dojo/_base/lang",
 			}
 
 			if (this.state == IDLE) {
-				this.deferred.then(
+				this.promise.then(
 					function (result) {
 						request.result = (result !== undefined) ? result : request.result;
 						request.error  = undefined;

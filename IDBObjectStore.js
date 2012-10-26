@@ -79,7 +79,7 @@ define(["dojo/_base/lang",
 			defineProperty( this, "keyPath", {writable: true});
 			defineProperty( this, "name", {writable: false});
 
-			defineProperty( this, "_records", {enumerable: false});
+			defineProperty( this, "_records", {enumerable: true});
 			defineProperty( this, "_isStore", {enumerable: false});
 
 		} else {
@@ -113,7 +113,7 @@ define(["dojo/_base/lang",
 		//========================================================================
 		// Database operations (http://www.w3.org/TR/IndexedDB/#database-operations)
 
-		function deleteRecord( store, locator ) {
+		function deleteRecord(/*IDBObjectStore*/ store, /*location*/ locator ) {
 			// summary:
 			//		Delete a single record from the store.
 			// store:
@@ -182,7 +182,7 @@ define(["dojo/_base/lang",
 			return locator;
 		}
 
-		function storeRecord(/*IDBObjectStore*/ store, /*any*/ value, /*any*/ key, noOverwrite ) {
+		function storeRecord(/*IDBObjectStore*/ store, /*any*/ value, /*any*/ key, /*Boolean*/ noOverwrite ) {
 			// summary:
 			//		Add a record to the store. Throws a DOMException of type ConstraintError
 			//		if the key already exists and noOverwrite is set to true.
@@ -265,19 +265,19 @@ define(["dojo/_base/lang",
 			store._records = [];
 		}
 
-		this._deleteKeyRange = function _deleteKeyRange( args, request ) {
+		this._deleteKeyRange = function _deleteKeyRange(/*Object*/ kwArgs,/*IDBRequest*/ request ) {
 			// summary:
 			//		Delete a record from the store. This is the asynchronous entry point
 			//		for the delete record store procedure.  If the store is destroyed or
 			//		or in the process of being destroyed ignore the request.
-			// args
+			// kwArgs
 			//		A JavaScript 'key:value' pairs object.
 			// request:
 			//		A IDBRequest
 			// tag:
 			//		Private
-			if ( !args.store._destroyed && !args.store._beingDestroyed ) {
-				deleteKeyRange( args.store, args.key );
+			if ( !kwArgs.store._destroyed && !kwArgs.store._beingDestroyed ) {
+				deleteKeyRange( kwArgs.store, kwArgs.key );
 			}
 		}
 
@@ -313,18 +313,18 @@ define(["dojo/_base/lang",
 			return storeInstance;
 		}
 
-		this._storeRecord = function _storeRecord( args, request ) {
+		this._storeRecord = function _storeRecord(/*Object*/ kwArgs,/*IDBRequest*/ request ) {
 			// summary:
 			//		Add a record to the store. This is the asychronous entry point for
 			//		the store record procedure.
-			// args
+			// kwArgs
 			//		A JavaScript 'key:value' pairs object.
 			// request:
 			//		A IDBRequest
 			// tag:
 			//		Private
-			assertStore(args.store);
-			return storeRecord( args.store, args.value, args.key, args.noOverwrite );
+			assertStore(kwArgs.store);
+			return storeRecord( kwArgs.store, kwArgs.value, kwArgs.key, kwArgs.noOverwrite );
 		}
 
 		defineProperty( this, "_clearRecords", {enumerable: false});
@@ -404,9 +404,9 @@ define(["dojo/_base/lang",
 			//		TransactionInactiveError
 			// tag:
 			//		Public
-			function _clear( args, request ) {
-				assertStore(args.store);
-				this._clearRecords( args.store );
+			function _clear(/*Object*/ kwArgs,/*IDBRequest*/ request ) {
+				assertStore(kwArgs.store);
+				this._clearRecords( kwArgs.store );
 			}
 
 			assertStore( this );
@@ -433,9 +433,9 @@ define(["dojo/_base/lang",
 			//		TransactionInactiveError
 			// tag:
 			//		Public
-			function _count( args, request ) {
-				assertStore(args.store);
-				var range = Keys.getRange( args.store, args.key );
+			function _count(/*Object*/ kwArgs,/*IDBRequest*/ request ) {
+				assertStore(kwArgs.store);
+				var range = Keys.getRange( kwArgs.store, kwArgs.key );
 				return range.count;
 			}
 
@@ -487,6 +487,7 @@ define(["dojo/_base/lang",
 			throw new DOMException( "InvalidStateError", "Method only allowed in a versionchange transaction" );
 		}
 
+		// WARNING: THE DOJO BUILD SYSTEM WILL FAIL ON 'this.delete'
 		this.delete = function (/*any*/ key) {
 			// summary:
 			//		Delete all records that match key or are in the key range.
@@ -531,7 +532,7 @@ define(["dojo/_base/lang",
 			}
 		};
 
-		this.get = function get(key) {
+		this.get = function get(/*any*/ key) {
 			// summary:
 			//		Get the first record that matches key. The record value is returned
 			//		as the result of the IDBRequest.
@@ -559,9 +560,9 @@ define(["dojo/_base/lang",
 			//		| });
 			// tag:
 			//		Public
-			function _get( args, request ) {
-				assertStore(args.store);
-				var locator = retrieveRecord( args.store, args.key );
+			function _get(/*Object*/ kwArgs,/*IDBRequest*/ request ) {
+				assertStore(kwArgs.store);
+				var locator = retrieveRecord( kwArgs.store, kwArgs.key );
 				var value   = locator.record ? lang.clone( locator.record.value )  : undefined;
 				return value;
 			}
@@ -642,7 +643,7 @@ define(["dojo/_base/lang",
 			return this.transaction._queue(request);
 		};
 
-		this.put = function (value, key) {
+		this.put = function (/*Object*/value, /*any*/ key) {
 			// summary:
 			//		Add a record to the store. On successful completion the record key
 			//		is returned as the result of the IDBRequest.  If a record with the

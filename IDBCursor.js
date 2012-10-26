@@ -64,6 +64,7 @@ define(["dojo/_base/lang",
 		var keyRange;
 		var request;
 		var store;
+		var self = this;
 
 		defineProperty( this, "primaryKey", {get: function () { return primaryKey; },	enumerable: true});
 		defineProperty( this, "direction", {get: function () { return direction; },	enumerable: true});
@@ -248,6 +249,7 @@ define(["dojo/_base/lang",
 			}
 		}
 
+		// WARNING: THE DOJO BUILD SYSTEM WILL FAIL ON 'this.continue'
 		this.continue = function (/*any?*/ key) {
 			// summary:
 			//		Advance the cursor once in the direction set for the cursor or to the
@@ -267,6 +269,7 @@ define(["dojo/_base/lang",
 			}
 		}
 
+		// WARNING: THE DOJO BUILD SYSTEM WILL FAIL ON 'this.delete'
 		this.delete = function () {
 			// summary:
 			//		Delete the record with the cursor's current primary key from the store.

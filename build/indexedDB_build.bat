@@ -1,0 +1,1 @@
+build --profile ../../indexedDB/indexedDB --require ../../indexedDB/indexedDB.build.js --release

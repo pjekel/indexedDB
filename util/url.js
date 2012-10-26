@@ -255,6 +255,7 @@ define([], function() {
 			//		Location object whose properties need normalization.
 			// tag:
 			//		Private
+
 			function decodeUnreserved( property ) {
 				// Percent-Encoding Normalization (rfc3986 $6.2.2.2)
 				return property.replace(/\%([0-9,a-f][0-9,a-f])/gi, function(match, p1) {
@@ -276,6 +277,8 @@ define([], function() {
 				});
 			}
 			// Percent-Encoding Normalization (rfc3986 $6.2.2.2)
+			// NOTE: do not call decodeURIComponent(), as we ONLY want to decode
+			//			 unreserved characters...
 			location.protocol = decodeUnreserved( location.protocol );
 			location.hostname = decodeUnreserved( location.hostname );
 			location.pathname = decodeUnreserved( location.pathname );

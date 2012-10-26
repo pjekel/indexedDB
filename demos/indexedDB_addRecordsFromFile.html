@@ -9,7 +9,7 @@
             async: true,
             parseOnLoad: true,
             isDebug: true,
-            baseUrl: "/js/dojotoolkit/",
+            baseUrl: "/js/dojotoolkit",
             packages: [
               { name: "dojo",   location: "dojo" },
               { name: "indexedDB", location: "indexedDB" }
@@ -24,6 +24,7 @@
   <body class="claro">
     <div id="CheckboxTree">
       <script type="text/javascript">
+//				require(["indexedDB/IDBEnvironment!enforce"], function(indexedDB) {
 				require(["indexedDB/IDBEnvironment!enforce"], function(indexedDB) {
 
 						function onError( event ) {
@@ -38,7 +39,7 @@
 
 						var database = {
 							stores: [
-								{ url:"/Simpsons.json", name:"characters", storeOptions:{keyPath:"name"},
+								{ url:"./Simpsons.json", name:"characters", storeOptions:{keyPath:"name"},
 									indexes: [
 										{ name:"parents", keyPath:"parent", indexOptions:{multiEntry:true}}
 									]
@@ -50,7 +51,7 @@
 						indexedDB.deleteDatabase("simpsons");
 						// Open database and add the 'upgradeneeded', 'onsuccess' and 'onerror'
 						// event handlers.
-						var openReq0 = indexedDB.open("/js/dojotoolkit/indexedDB/database/SimpsonsDB", database);
+						var openReq0 = indexedDB.open("indexedDB/database/SimpsonsDB", 1, database);
 						openReq0.onupgradeneeded = function upgrade1(event) {
 							console.log( "Upgradeneeded - openReq0" );
 						}
@@ -58,7 +59,8 @@
 						openReq0.onsuccess = function (event) {
 							var dbConn   = this.result;
 							console.log( "{openReq0} Database ["+dbConn.name+"] successfully opened.");
-							// Start a transaction to add records to the store...
+
+							// Start a transaction to iterate the store...
 							var trans0 = dbConn.transaction( dbConn.objectStoreNames, IDBTransaction.READ_WRITE );
 							trans0.oncomplete = function (event) {
 								console.log( "{trans0} Transaction Complete." );

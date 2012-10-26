@@ -110,7 +110,7 @@ define(["dojo/_base/lang",
 			}
 		}
 
-		function addIndexRecord(/*IDBIndex*/ index, indexKey, storeKey ) {
+		function addIndexRecord(/*IDBIndex*/ index, /*any*/ indexKey, /*any*/ storeKey ) {
 			// summary:
 			//		Add a new record to the index.
 			// index:
@@ -192,7 +192,7 @@ define(["dojo/_base/lang",
 			//		Private
 			var indexKey = Keys.indexKeyValue( this.keyPath, storeRecord.value );
 
-			function hasKey(index, indexKey) {
+			function hasKey(/*IDBIndex*/ index, /*any*/ indexKey) {
 				// summary:
 				//		Return true if an index key already exists otherwise false. If the
 				//		key is an array and multiEntry is enabled each entry in the array
@@ -308,7 +308,7 @@ define(["dojo/_base/lang",
 		//=========================================================================
 		// Public methods
 
-		this.count = function (key) {
+		this.count = function (/*any*/ key) {
 			// summary:
 			//		Count the total number of records that share the key or key range and
 			//		return that value as the result for the IDBRequest.
@@ -323,14 +323,14 @@ define(["dojo/_base/lang",
 			//		TransactionInactiveError
 			// tag:
 			//		Public
-			function _count( args, request ) {
-				var index = args.index;
+			function _count(/*Object*/ kwArgs,/*IDBRequest*/ request ) {
+				var index = kwArgs.index;
 				var count = 0;
 				var i, range;
 
 				assertIndex(index);
 
-				range = Keys.getRange(index, args.key);
+				range = Keys.getRange(index, kwArgs.key);
 				if (range.count) {
 					for (i = range.eq; i < range.gt; i++) {
 						count = count + index._records[i].value.length;
@@ -380,9 +380,9 @@ define(["dojo/_base/lang",
 			//		| });
 			// tag:
 			//		Public
-			function _get( args, request ) {
-				assertIndex(args.index);
-				return retrieveReferenceValue( args.index, args.key );
+			function _get(/*Object*/ kwArgs,/*IDBRequest*/ request ) {
+				assertIndex(kwArgs.index);
+				return retrieveReferenceValue( kwArgs.index, kwArgs.key );
 			}
 
 			assertIndex(this);
@@ -392,7 +392,7 @@ define(["dojo/_base/lang",
 			return this.objectStore.transaction._queue(request);
 		};
 
-		this.getKey = function (key) {
+		this.getKey = function (/*any*/ key) {
 			// summary:
 			//		Get the first record that matches key.   The index record value, that
 			//		is, the primary key of the referenced store is returned as the result
@@ -409,9 +409,9 @@ define(["dojo/_base/lang",
 			//		TransactionInactiveError
 			// tag:
 			//		Public
-			function _getKey( args, request ) {
-				assertIndex(args.index);
-				return retrieveIndexValue( args.index, args.key );
+			function _getKey(/*Object*/ kwArgs,/*IDBRequest*/ request ) {
+				assertIndex(kwArgs.index);
+				return retrieveIndexValue( kwArgs.index, kwArgs.key );
 			}
 
 			assertIndex(this);
