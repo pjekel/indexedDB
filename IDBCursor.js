@@ -11,9 +11,8 @@ define(["dojo/_base/lang",
 				"./dom/error/DOMException",
 				"./IDBKeyRange",
 				"./IDBRequest",
-				"./Record",
 				"./util/Keys"
-			], function(lang, DOMException, KeyRange, IDBRequest, Record, Keys){
+			], function(lang, DOMException, KeyRange, IDBRequest, Keys){
 	"use strict";
 
 // module:

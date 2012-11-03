@@ -104,7 +104,9 @@ define(["dojo/has"], function (has) {
 													freezeObject(new IDBKeyRange()),
 													freezeObject(new IDBWorker())
 												);
+//					window.indexedDB = indexedDB = freezeObject(new IDBFactory());
 					indexedDB = freezeObject(new IDBFactory());
+
 					callback( indexedDB );
 				});
 			} else {
@@ -114,7 +116,7 @@ define(["dojo/has"], function (has) {
 				console.info( "Using native indexedDB support...");
 				callback( indexedDB );	// Return native indexedDB (IDBFactory)
 			}
-			has.add("dojo-indexedDB", true);
+			has.add("indexedDB", true);
 		}
 
 	} /* end IDBEnvironment */

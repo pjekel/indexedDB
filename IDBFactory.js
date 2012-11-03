@@ -263,7 +263,6 @@ define(["./dom/error/DOMException",
 																												 newVersion: newVersion});
 								dbConn.version = database.setVersion( newVersion );
 								request.result = dbConn;
-								transaction._queue( request );	// Attach request to the transaction.
 								request.dispatchEvent(event);
 							});
 							// Only when the versionchange transaction is complete do we mark
@@ -280,7 +279,8 @@ define(["./dom/error/DOMException",
 								dbConn.version = 0;
 								dbConn.objectStoreNames = null;
 							});
-							// Clear the 'blocked' timer.
+
+							transaction._queue( request );	// Attach request to the transaction.
 							clearTimeout( request._timeout );
 							delete request._timeout;
 						},

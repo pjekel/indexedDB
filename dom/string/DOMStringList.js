@@ -101,16 +101,26 @@ define ([], function () {
 			enumerable: true
 		});
 
-		this.contains = function( string ) {
-			if (items.indexOf(string) != -1) {
+		this.contains = function(/*String*/ string ) {
+			// summary:
+			//		Returns true if a given string is part of the DOMStringList otherwise
+			//		false
+			// tag:
+			//		Public
+			if (this.toArray().indexOf(string) != -1) {
 				return true;
 			}
 			return false;
 		}
 
-		this.item = function(idx) {
-			if (idx >= 0 && idx <= this.length -1) {
-				return this[idx];
+		this.item = function(/*Number*/ index) {
+			// summary:
+			//	Returns the indexth item in the collection. If index is greater than
+			//	or equal to the number of DOMStrings in the list, this returns null.
+			// tag:
+			//		Public
+			if (index >= 0 && index <= this.length -1) {
+				return this[index];
 			}
 			return null;
 		}

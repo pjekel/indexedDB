@@ -16,6 +16,11 @@ define(["./dom/event/EventTarget",
 	"use strict";
 
 	var moduleName = "indexedDB/IDBWorker";
+	var IDLE = 0,
+			PENDING = 1,
+			ACTIVE = 2,
+			REPEAT = 3,
+			DONE = 4;
 
 	// Requires JavaScript 1.8.5
 	var defineProperty = Object.defineProperty;
@@ -68,6 +73,7 @@ define(["./dom/event/EventTarget",
 			enumerable: true
 		});
 
+		defineProperty( this, "active", {get: function() {return activeTrans;}, enumerable:true});
 		//=======================================================================
 
 		function execute( transaction ) {
@@ -88,6 +94,7 @@ define(["./dom/event/EventTarget",
 
 					transaction.addEventListener("done", onDone);
 					transactions.push(transaction);
+					transaction._state = PENDING;
 					startTransactions( [transaction] );
 				}
 				return transaction;
@@ -166,7 +173,7 @@ define(["./dom/event/EventTarget",
 			//			 flooded with read-only transactions...
 
 			transList.forEach( function(transaction) {
-				if (!transaction._running) {
+				if (transaction._state != ACTIVE) {
 					if( !violateConstraint( transaction )) {
 						activeTrans.push(transaction);
 						transaction._start();
@@ -282,7 +289,7 @@ define(["./dom/event/EventTarget",
 				}
 				if (active != undefined) {
 					transList = transList.filter( function(tran) {
-												return (tran._running == !!active);
+												return ((active && tran._state == ACTIVE) || (!active && tran._state != ACTIVE));
 											});
 				}
 				return freezeObject(transList);
