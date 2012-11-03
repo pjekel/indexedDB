@@ -313,6 +313,7 @@ define(["dojo/_base/lang",
 			}
 
 			if (this.state == IDLE) {
+				this.state = PENDING;
 				this.promise.then(
 					function (result) {
 						request.result = (result !== undefined) ? result : request.result;
@@ -325,7 +326,6 @@ define(["dojo/_base/lang",
 						request._fireError(null);
 					}
 				);
-				this.state = PENDING;
 				setTimeout( function () {
 											_execMethod.call(request);
 										}, 0 );

@@ -76,7 +76,7 @@ define(["dojo/_base/lang",
 			defineProperty( this, "unique", {writable: false} );
 
 			defineProperty( this, "_isIndex", {enumerable: false} );
-			defineProperty( this, "_records", {enumerable: false} );
+			defineProperty( this, "_records", {enumerable: true} );
 
 		} else {
 			throw new DOMException( "SyntaxError" );
@@ -239,7 +239,8 @@ define(["dojo/_base/lang",
 		this._deleteStoreRecord = function (/*Record*/ storeRecord) {
 			//summary:
 			//		Remove all index records whose value matches the store key if any
-			//		such records exist.
+			//		such records exist. Note: index records are structured as follows:
+			//		{ key: indexKey, value: [storeKey1, storeKey2, storeKey3, .. ]}.
 			// storeRecord:
 			//		Store record whose index record(s) are to be deleted.
 			// tag:
@@ -268,25 +269,25 @@ define(["dojo/_base/lang",
 					}
 				}
 				// Of all candidate index records get only those whose value length equals
-				// zero after removing the store key.
+				// zero AFTER removing the store key.
 				candidates = candidates.filter( function (recNum) {
 					var value = self._records[recNum].value;
 					var index = value.indexOf(storeKey);
-					// If the index record value contains the store key, remove it.
+					// If the index record value contains the store key, remove it from the
+					// record value.
 					if (index != -1) {
 						value.splice(index,1);
 						return (value.length == 0);
 					}
+					return false;
 				});
 
+				// If any candidates are left reverse the record order (descending) and delete
+				// the records starting with the highest record number.
 				if (candidates.length > 0) {
-					candidates.forEach( function(recNum) {
-						if (self._records[recNum].value.length == 0) {
-							delete self._records[recNum];
-						}
+					candidates.reverse().forEach( function(recNum) {
+						self._records.splice(recNum,1);
 					});
-					// Finally, remove all sparse array entries (re-index array).
-					this._records = this._records.filter( function() {return true;});
 				}
 			}
 		}

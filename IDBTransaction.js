@@ -22,7 +22,9 @@ define(["./dom/error/DOMException",
 	var transactionId = 1;
 	var IDLE = 0,
 			PENDING = 1,
-			ACTIVE = 2;
+			ACTIVE = 2,
+			REPEAT = 3,
+			DONE = 4;
 
 	function IDBTransaction (/*IDBDatabase*/ connection, /*any*/ storeNames, /*String*/ mode ) {
 		// summary:
@@ -58,20 +60,22 @@ define(["./dom/error/DOMException",
 		var completeHndl;
 		var errorCallback;
 		var errorHndl;
-		var done = false;
+
+		var done  = false;
 		var db;
 
-		this._request    = null;
-		this._scope      = {};
-		this._aborted    = false;
-		this._running    = false;
+		this._request = null;
+		this._scope   = {};
+		this._aborted = false;
+		this._state   = IDLE;
 
 		defineProperty( this, "_done", {
 			get:	function () { return done; },
 			set:	function (value) {
 							this.active = false;
 							if (!done && value) {
-								done = value;		// Update done flag before firing the event.
+								this._state = DONE;
+								done  = value;
 								new Event("done", {bubbles:true}).dispatch(this);
 							}
 							done = value;
@@ -142,10 +146,9 @@ define(["./dom/error/DOMException",
 		});
 
 		defineProperty( this, "_aborted", {enumerable:false, writable: true});
-		defineProperty( this, "_running", {enumerable:false, writable: true});
 		defineProperty( this, "_request", {enumerable:false, writable: true});
 		defineProperty( this, "_scope", {enumerable:false, writable: true});
-		defineProperty( this, "_timeout", {enumerable:false, writable: true, configurable: true});
+		defineProperty( this, "_state", {enumerable:false, writable: true});
 
 		defineProperty( this, "identity", {enumerable:true});
 
@@ -176,7 +179,6 @@ define(["./dom/error/DOMException",
 			//		Private
 console.info("Transaction ["+this.identity+"] aborted.");
 			requestList  = [];
-			this._running = false;
 			this._done    = true;
 			this._scope   = [];
 		}
@@ -190,7 +192,6 @@ console.info("Transaction ["+this.identity+"] aborted.");
 			//		Private
 // console.info("Transaction ["+this.identity+"] complete.");
 			requestList  = [];
-			this._running = false;
 			this._done    = true;
 			this._scope   = [];
 		}
@@ -267,18 +268,22 @@ console.info("Transaction ["+this.identity+"] aborted.");
 			if ( !(this._done || this._aborted) && this.active) {
 				request.transaction = this;
 				requestList.push(request);
-				if (this._running) {
-					var active = requestList.filter( function(queued){
-													return (queued.state != IDLE); }
-												)[0];
-					if (!active) {
-						this._request = request;
-						request._execute();
-					}
-				}
-				if (this._timeout) {
-					clearTimeout( this._timeout );
-					delete this._timeout;
+
+				switch (this._state) {
+					case ACTIVE:
+						var active = requestList.filter( function(queued){
+														return (queued.state != IDLE); }
+													)[0];
+						if (active && active.length == 0) {
+							this._request = request;
+							request._execute();
+						}
+						break;
+					case IDLE:
+						// Now that we have a task, hand the transaction off to the IDBWorker.
+// console.info("Transaction ["+this.identity+"] submitted.");
+						IDBWorker.postMessage( this, false );
+						break;
 				}
 				return request;
 			} else {
@@ -300,35 +305,21 @@ console.info("Transaction ["+this.identity+"] aborted.");
 					this._commit();
 				}
 			}
-			if (this._timeout) {
-				clearTimeout( this._timeout );
-				delete this._timeout;
-			}
 		}
 
 		this._start = function () {
 			// summary:
 			//		Start the transaction. This method MUST only be called by the global
 			//		transaction manager IDBWorker.
-			//
-			// NOTE:
-			//		Although this module implements the asynchronous API a timer is started
-			//		just in case no requests are queued within 5 seconds for this transaction
-			//		otherwise the transaction could block all other processing indefinitly.
-			//
 			// tag:
 			//		Private
 			if ( !(this._aborted ||this._done) ){
-				if (requestList.length == 0) {
-					transaction._timeout = setTimeout( function() {
-						transaction._abortTransaction( transaction, "TimeoutError" );
-					}, 5000);
-				}
+// console.info("Transaction ["+this.identity+"] started.");
 				setTimeout( function () {
 					new Event("start").dispatch(transaction)
 				}, 0 );
 
-				this._running = true;
+				this._state = ACTIVE;
 				executeTask();
 			}
 		}
@@ -425,16 +416,12 @@ console.info("Transaction ["+this.identity+"] aborted.");
 		} else {
 			throw new DOMException( "InvalidAccessError" );
 		}
-
 		// Add private event listeners
 		this.addEventListener("complete", onComplete );
 		this.addEventListener("error", onError );
 		this.addEventListener("abort", onAbort );
 
-		// Hand transaction off to the IDBWorker.
-		IDBWorker.postMessage( this, false );
-
-	}
+	} /* end IDBTransaction() */
 
 	// Inherit from EventTarget
 	IDBTransaction.prototype = new EventTarget();
