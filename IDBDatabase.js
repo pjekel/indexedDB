@@ -65,7 +65,7 @@ define(["./dom/error/DOMException",
 
 		defineProperty( this, "_database", {
 			get:	function () { return database; },
-			enumerable: false
+			enumerable: true
 		});
 
 		this.objectStoreNames = database.getStoreNames();
